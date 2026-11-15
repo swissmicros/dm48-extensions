@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: MIT
+# Copyright © 2026 SwissMicros GmbH
+# Runs in the public dm48-extensions repository (this file is its .github/workflows/build.yml): builds the template and every sample, and runs the packer's tests.
+name: build
+on:
+  push:
+  pull_request:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-none-eabi python3
+      - name: Build the template
+        run: make -C template all
+      - name: Build the samples
+        run: |
+          for m in samples/*/Makefile; do
+            [ -f "$m" ] || continue
+            make -C "$(dirname "$m")" all
+          done
+      - name: Test the packer
+        run: |
+          cd tools
+          python3 -m unittest test_extpack

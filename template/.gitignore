@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: MIT
+# Copyright © 2026 SwissMicros GmbH
+*.o
+*.elf
+*.ext
+*.wasm
+*.so

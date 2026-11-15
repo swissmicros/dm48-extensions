@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: MIT
+# Copyright © 2026 SwissMicros GmbH
+# Build outputs: the template and every sample make these.
+*.o
+*.elf
+*.ext
+*.wasm
+*.so
+__pycache__/
