@@ -1,2 +1,2 @@
-DM48 firmware commit: 6ecb59364234cc325b38149fc139f2507aa3785a
-Commit date: 2026-11-16T11:42:46+01:00
+DM48 firmware commit: b8da01052a5ac388bf7a8aeb104cd95744481368
+Commit date: 2026-11-16T15:33:32+01:00

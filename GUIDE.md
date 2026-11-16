@@ -61,6 +61,8 @@ int dx_init(void) { return dx_register("TWICE", 1, twice); }
 ```
 
 - `dx_init` runs once, when the extension is loaded. It only registers commands: `dx_register(name, nargs, fn)`.
+- A command must not be named like a built-in command (`SHOW`, `KEY`, ...): the extension is refused at load with
+  `NAME: name conflict CMD` (`NAME` the extension, `CMD` the command). Pick a distinct name such as `XSHOW`.
 - A command is `int fn(void)`. The firmware has already checked that the stack holds `nargs` arguments (else Too
   Few Arguments). The command reads them with `dx_peek`, drops them and pushes its results.
 - Return 0 for success. A nonzero return is a failure: the error you recorded with `dx_error` / `dx_error_msg`, or
@@ -131,7 +133,8 @@ static int anim(void) {                  /* ( -> frames ms ) */
 ```
 
 `dx_key`'s numbers are those of `KEY`: *rc*, the key's row then its column, counted on the HP 48 keyboard from the
-top left (11 is the first menu key; the rows of five keys are numbered 1–5). The DM48 has the HP 48's keys in the
+top left (11 is the first menu key). The first four rows have six keys, columns 1–6; the ENTER row has five (51 ENTER
+to 55 backspace); the four rows below have five keys each, columns 1–5 (ON is 91). The DM48 has the HP 48's keys in the
 HP 48's places, so the numbers are the same:
 
 | Key | Code | Key | Code |
@@ -165,9 +168,15 @@ lines and lines starting with `#` are ignored. At most 8 extensions load.
 One that cannot load (a firmware export it needs is missing, a damaged or missing file, not enough memory) gets a
 one-line notice at startup, for example `fft: needs dx_frob@2 - update firmware`, or `fft: old format - rebuild`
 for a file built with an older kit (format 1: build it again with this one); a missing file keeps its line, so
-copying the file back is enough. SETUP → Programs → Remove extensions unloads them all and deletes `LOAD.TXT`
-(programs that use their commands then give `Extension missing: NAME`); to remove one, delete its line from
-`LOAD.TXT` and restart.
+copying the file back is enough.
+
+SETUP → Programs → Remove extensions (shown while an extension is set to load) lists them: the ones loaded, and the
+ones `LOAD.TXT` names that did not load this time, marked `(not loaded)`; All extensions is last. Picking one asks
+first (F1 removes it): it is unloaded and its line dropped from `LOAD.TXT`, the other lines and comments kept. All
+extensions unloads them all and deletes `LOAD.TXT`. Programs that use a removed extension's commands then give
+`Extension missing: NAME`. With a single extension its question shows at once. The list shows at most 7
+extensions (one screen, with All): remove the others with All, or by deleting their lines from `LOAD.TXT` and
+restarting. On the web tester the same menu lists the extensions this browser keeps.
 
 Its commands are typed by their names. When two loaded extensions have a command of the same name, write
 `ext:CMD` (`popcnt:POPCNT`); that form means the command only while the extension `ext` is loaded, and without it
