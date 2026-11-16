@@ -1,0 +1,2 @@
+%%HP: T(3)A(R)F(.);
+\<< 30 MINE "score" \->TAG \>>

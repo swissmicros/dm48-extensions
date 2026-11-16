@@ -6,3 +6,10 @@ One folder per sample extension. Each folder holds its C sources and a Makefile 
 (`make` builds `NAME.ext`), so CI can build it with `make -C samples/NAME all`.
 
 A sample copied from `template/` sets `KIT = ../..` in its Makefile, since it sits two levels below the kit's root.
+
+| Sample | What it shows |
+| --- | --- |
+| [bench](bench/) | `SIEVE`, `PIDIG` and `PISUM` against the same work in User RPL: integer and software-`double` speed. |
+| [mandel](mandel/) | `MANDEL`: the Mandelbrot set at 400 × 240 in fixed point, shown band by band with `dx_show`, timed with `dx_ms`. |
+| [life](life/) | `LIFE`: Conway's Game of Life on the whole screen, 8 cells at a time, with keys (`dx_key`) and an fps label. |
+| [mine](mine/) | `MINE`: a minefield to cross, a small game driven by `dx_key`, with its own font and drawing. |
