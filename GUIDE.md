@@ -11,7 +11,7 @@ the calculator. The file format is in [README.md](README.md).
 You need `arm-none-eabi-gcc` (the GNU Arm Embedded toolchain), GNU `make` and Python 3.
 
 ```sh
-cd sdk/ext/template
+cd template
 make                # popcnt.ext
 python3 ../tools/extpack.py --dump popcnt.ext   # what is inside: the imports and relocations
 ```
@@ -115,7 +115,7 @@ stack is restored, and the extension is unloaded until the next start.
 On the calculator an extension runs unprivileged under the memory protection unit: it can reach only its own
 image, `.bss` and stack (2 KB; keep large buffers in `.bss`), and any access to the calculator's memory or
 peripherals is a fault. Buffers you pass to `dx_*` functions for output must be
-in `.bss` or on the stack (not in initialised data). The file (format 2) keeps code and data apart: the code and
+in writable memory: initialised data, `.bss` or the stack, never const data or code. The file (format 2) keeps code and data apart: the code and
 read-only data are read-only and executable to the extension, and its initialised data, `.bss` and stack are writable
 and never executable, so an extension can neither rewrite its own code nor run its data. There is no timer guard: a
 loop that never calls `dx_poll` cannot be stopped with ON.

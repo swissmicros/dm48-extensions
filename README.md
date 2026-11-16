@@ -11,7 +11,7 @@ calculator. [GUIDE.md](GUIDE.md) is the how-to; this file lists the kit and spec
 | `include/dm48ext_wasm.h` | Generated from it: each function's WebAssembly import name (module `dx`), for the web build. |
 | `ld/ext.ld` | The linker script: one image from address 0 (code and read-only data, then `.data` from a 32-byte boundary), `.bss` last and `NOLOAD`, entry `dx_init`. |
 | `tools/extpack.py` | The packer: linked ELF → `NAME.ext`. Python 3, standard library only. `--dump` prints a file. |
-| `tools/test_extpack.py` | Its tests: `python3 -m unittest discover sdk/ext/tools`. |
+| `tools/test_extpack.py` | Its tests: `cd tools && python3 -m unittest test_extpack`. |
 | `template/` | A complete extension (`POPCNT`, `REVSTR`) and its Makefile. Copy it to start. |
 | `LICENSE` | MIT. Your own extensions may use any licence. |
 
@@ -125,4 +125,5 @@ are synced from there, so a fix to a kit file is best sent as an issue or a pull
 hand. `FIRMWARE.txt` names the firmware commit the kit was last synced from.
 
 `samples/` is the place for contributed samples: one directory per sample, each with its own `Makefile` modelled on
-`template/Makefile`. The CI builds every one of them. Issues and pull requests are welcome on GitHub.
+`template/Makefile`. A sample copied from `template/` into `samples/NAME/` must set `KIT = ../..` in its Makefile
+(the template's `KIT = ..` is relative to `template/`). The CI builds every one of them. Issues and pull requests are welcome on GitHub.

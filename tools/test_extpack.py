@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: MIT
 # Copyright © 2026 SwissMicros GmbH
-"""Tests for extpack.py (stdlib unittest). Run: python3 -m unittest discover sdk/ext/tools
+"""Tests for extpack.py (stdlib unittest). Run from the kit root: cd tools && python3 -m unittest test_extpack
 
 The ELF tests build tiny extensions with arm-none-eabi-gcc and skip cleanly when it is not installed; the checked-in
-fixture (firmware/tests/unit/fixtures/popcnt.ext) is checked without it.
+fixture is checked without it, and only when run inside the DM48 firmware repository (otherwise that test is skipped).
 """
 import os
 import shutil
