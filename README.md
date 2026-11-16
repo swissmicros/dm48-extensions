@@ -15,6 +15,23 @@ calculator. [GUIDE.md](GUIDE.md) is the how-to; this file lists the kit and spec
 | `template/` | A complete extension (`POPCNT`, `REVSTR`) and its Makefile. Copy it to start. |
 | `LICENSE` | MIT. Your own extensions may use any licence. |
 
+## The exports
+
+Each is `@1`, declared in `include/dm48ext.h`, which says what each one takes and returns.
+
+| Group | Functions |
+| --- | --- |
+| The stack | `dx_depth`, `dx_peek`, `dx_drop`, `dx_push`, `dx_type` |
+| Reals and complex numbers | `dx_get_real`, `dx_make_real`, `dx_get_real_text`, `dx_make_real_text`, `dx_get_complex`, `dx_make_complex` |
+| Binary integers | `dx_get_bint`, `dx_make_bint` |
+| Strings | `dx_string_len`, `dx_get_string`, `dx_make_string` |
+| Lists | `dx_list_len`, `dx_list_item`, `dx_make_list` |
+| Graphics | `dx_grob_size`, `dx_get_grob_bits`, `dx_make_grob`, `dx_show` |
+| Errors and ON | `dx_error`, `dx_error_msg`, `dx_poll` |
+| Time and keys | `dx_ms`, `dx_key` |
+| The calculator | `dx_product`, `dx_fw_version` |
+| Registration (in `dx_init` only) | `dx_register` |
+
 ## The `.ext` format, version 2
 
 Everything is little-endian. All offsets are from the start of the file. `tools/extpack.py` (`HEADER_FMT`,

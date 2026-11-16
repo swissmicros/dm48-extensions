@@ -32,4 +32,7 @@ DX_WASM_IMPORT("dx_error_msg@1") int dx_error_msg(const char *msg);
 DX_WASM_IMPORT("dx_poll@1") int dx_poll(void);
 DX_WASM_IMPORT("dx_product@1") int dx_product(void);
 DX_WASM_IMPORT("dx_fw_version@1") int dx_fw_version(char *buf, int cap);
+DX_WASM_IMPORT("dx_show@1") int dx_show(int w, int h, const uint8_t *bits);
+DX_WASM_IMPORT("dx_ms@1") uint32_t dx_ms(void);
+DX_WASM_IMPORT("dx_key@1") int dx_key(void);
 DX_WASM_IMPORT("dx_register@1") int dx_register(const char *name, int nargs, dx_cmd_fn fn);

@@ -73,7 +73,9 @@ int dx_init(void) { return dx_register("TWICE", 1, twice); }
 - **After a failed `dx_*` call, return -1.** A failed call (-1, or a 0 handle) has already recorded the error. Do not
   carry on and do not record another one; return at once.
 - **Call `dx_poll()` in long loops, at least every few milliseconds.** It returns 1 when the user has pressed ON; then
-  return -1 promptly. On the DM48 the system's clock tick waits while your own code runs and catches up at each `dx_*`
+  return -1 promptly. It looks for ON on every call, and a call is cheap (on the calculator it reads the millisecond
+  clock and looks at the keyboard at most every 50 ms; in the web tester it is one read of shared memory), so call it
+  as often as you like: once per row of a picture, or every few hundred steps of an inner loop. On the DM48 the system's clock tick waits while your own code runs and catches up at each `dx_*`
   call, so an extension that computes for long without any `dx_*` call cannot be interrupted, and one that runs for
   about a second without one may reset the calculator.
 - **No libc.** There is no `malloc`, `printf`, `strlen` or `memcpy`: write the loop yourself, and use static
@@ -87,6 +89,69 @@ int dx_init(void) { return dx_register("TWICE", 1, twice); }
   `dx_fw_version` write one, NUL included, so `cap` must leave room for it. `dm48ext.h` marks each function.
 - Calls and tail calls (`BL`, `B.W`) to `dx_*` functions are fine. Should the packer ever refuse another branch to
   one (a conditional `B<cond>.W`, reported as `R_ARM_THM_JUMP19`), add `-fno-optimize-sibling-calls` to `CFLAGS`.
+
+## Animation and keys
+
+Three calls let a command show pictures while it runs, time itself and read keys:
+
+- **`dx_show(w, h, bits)`** shows your own `w`×`h` frame on the whole screen at once, over the status area. `bits`
+  is in HP 48 GROB row layout: `(w + 7) / 8` bytes a row, top row first, the lowest bit of each byte leftmost (as
+  `dx_get_grob_bits` gives a GROB's bits). The frame is scaled by the largest whole factor at which it fits (131×64
+  shows at ×3 on the DM48's 400×240, 400×240 at ×1) and centred, with the rest of the screen blank; a frame too big
+  even at ×1 is cut at the right and the bottom. Each call replaces the last picture, so a loop that draws into a
+  frame and shows it is an animation. `dx_show` uses no calculator memory: it reads your buffer and makes no
+  object. It returns 0, or -1 with Bad Argument Value when `w` or `h` is outside 0–2048 or the frame does not lie
+  in your extension's own memory. When the command returns, the calculator draws its normal screen again. On the
+  calculator most of a call's time is the transfer to the LCD, so show a frame only when it has changed. To show a
+  GROB from the stack, copy its bits into a buffer with `dx_get_grob_bits` first.
+- **`dx_ms()`** is a millisecond count from an arbitrary start, as a `uint32_t` that wraps (after about 49 days):
+  only the difference of two readings means anything, `(uint32_t)(t1 - t0)`.
+- **`dx_key()`** takes the next key from the buffer the `KEY` command reads, or returns 0 when there is none. It
+  never waits; each call consumes the key it returns. ON is never a key: `dx_poll` reports it, as always, even
+  when `dx_key` met it in the buffer first (the next `dx_poll` of the same command returns 1).
+
+The three are `dx_*` calls like any other, so a loop that calls them also lets the system's tick catch up; it must
+still call `dx_poll` and return -1 when ON was pressed.
+
+```c
+static uint8_t frame[50 * 240];          /* 400 x 240: rows of (400 + 7) / 8 bytes, the lowest bit leftmost */
+
+static int anim(void) {                  /* ( -> frames ms ) */
+  int n = 0;
+  uint32_t t0 = dx_ms();
+  for (;;) {
+    draw(frame, n++);                    /* your code: the next frame into the buffer */
+    if (dx_show(400, 240, frame)) return -1;
+    if (dx_key() == 55) break;           /* backspace: a clean stop */
+    if (dx_poll()) return -1;            /* ON: abandon */
+  }
+  dx_obj f = dx_make_real(n), ms = dx_make_real(dx_ms() - t0);
+  return !f || !ms || dx_push(f) || dx_push(ms) ? -1 : 0;
+}
+```
+
+`dx_key`'s numbers are those of `KEY`: *rc*, the key's row then its column, counted on the HP 48 keyboard from the
+top left (11 is the first menu key; the rows of five keys are numbered 1–5). The DM48 has the HP 48's keys in the
+HP 48's places, so the numbers are the same:
+
+| Key | Code | Key | Code |
+| --- | --- | --- | --- |
+| ▲ | 25 | 0 | 92 |
+| ◀ | 34 | 1 2 3 | 82 83 84 |
+| ▼ | 35 | 4 5 6 | 72 73 74 |
+| ▶ | 36 | 7 8 9 | 62 63 64 |
+| ENTER | 51 | + | 95 |
+| ← (backspace) | 55 | − | 85 |
+| ◀ shift (left shift) | 71 | ▶ shift (right shift) | 81 |
+
+A shift key is a key of its own here (71, 81): `dx_key` gives no shifted numbers such as 25.2. There is no EXIT
+code: on the DM48, EXIT is ON, which breaks the program, and only `dx_poll` sees it. Give your command a clean
+"stop" key of its own; ← (55) is the usual one.
+
+**On the web tester,** `dx_key` needs the page to be cross-origin isolated (`SharedArrayBuffer`); without it,
+`dx_key` always returns 0, while `dx_show` and `dx_ms` still work. A fast show loop draws only the newest
+frame. In the host simulator (`fwcli --ext`), which has no screen, each `dx_show` is logged as
+`show <w>x<h>` on standard error.
 
 ## Install
 

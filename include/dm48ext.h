@@ -60,6 +60,13 @@ int    dx_error_msg(const char *msg);                      /* record a custom me
 int    dx_poll(void);                                      /* 1 when ON was pressed: return -1 promptly */ /* @1 */
 int    dx_product(void);                                   /* @1 */
 int    dx_fw_version(char *buf, int cap);                  /* C string written (e.g. "DM48-0.1"); its length */ /* @1 */
+/* Animation and keys (GUIDE.md "Animation and keys"). dx_show: your own w x h frame (0-2048 each; HP 48 GROB row
+   layout, (w+7)/8 bytes a row, lowest bit leftmost) on the whole screen at once, scaled by the largest whole factor
+   that fits, centred, cut at x1 when too big. It uses no calculator memory. 0, or -1 with Bad Argument Value for a
+   size out of range or a frame outside your memory. The normal screen comes back when the command returns. */
+int    dx_show(int w, int h, const uint8_t *bits);         /* @1 */
+uint32_t dx_ms(void);                                      /* ms from an arbitrary start, wrapping: use differences */ /* @1 */
+int    dx_key(void);                                       /* next queued key as KEY numbers it (rc), 0 = none; never waits; never ON */ /* @1 */
 
 /* An extension provides: */
 typedef int (*dx_cmd_fn)(void);                /* 0 ok, nonzero = failed (error recorded or Bad Argument Value) */
