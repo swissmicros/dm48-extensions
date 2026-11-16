@@ -4,8 +4,8 @@
 
 `MINE ( k → score )` is a small game at the DM48's full resolution. A field of 12 rows × 24 columns of 16-pixel
 squares (384 × 192 pixels) sits under a 48-pixel band. `k` mines (1 to 120; 30 when the argument is not a real) are
-hidden in it at random, never on the start (top left) or the goal (bottom right), and always with a way through:
-a field where the mines wall off the goal is dealt again. You walk from the start to the
+hidden in it at random, never on the start (top left) or the goal (bottom right), and almost always with a way through:
+a field where the mines wall off the goal is dealt again, up to 100 times. You walk from the start to the
 goal one square at a time, and you can't see the mines: the band only tells you how many are on the squares next to
 you.
 
