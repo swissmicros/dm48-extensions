@@ -1,0 +1,64 @@
+%%HP: T(3)A(R)F(.);
+\<<
+  \<< \-> prg
+    \<< TICKS prg EVAL SWAP TICKS SWAP - B\->R 8.192 / 2 RND \>>
+  \>>
+  \<< \-> name rc tc rr tr
+    \<< name rc tc "ms" \->TAG tr "ms" \->TAG
+      tr tc .12 MAX / 1 RND "x" \->TAG
+      5 \->LIST
+      IF rc TYPE 0 == THEN rc rr - ABS rc ABS 1 MAX 1E-8 * \<= ELSE rc rr SAME END
+      NOT \<< rr "RPL" \->TAG + \>> IFT
+    \>>
+  \>>
+  \-> time line
+  \<<
+    10000 \-> n
+    \<< "SIEVE 10000"
+      \<< n SIEVE \>> time EVAL
+      \<< n 1 - 2 / IP \-> m
+        \<< 1 m START 1 NEXT m \->LIST
+          3 n \v/ IP FOR p
+            IF DUP p 1 - 2 / GET THEN p SQ n FOR k k 1 - 2 / 0 PUT 2 p * STEP END
+          2 STEP
+          \GSLIST 1 +
+        \>>
+      \>> time EVAL
+      line EVAL
+    \>>
+    100 \-> n
+    \<< "PIDIG 100"
+      \<< n PIDIG \>> time EVAL
+      \<< n 8 + DUP 10 * 3 / IP 1 + { } { } 0 0 \-> want len a ds q x
+        \<< 1 len START 2 NEXT len \->LIST 'a' STO
+          1 want START
+            0 'q' STO
+            len 1 FOR i
+              a i GET 10 * q i * + 'x' STO
+              x 2 i * 1 - DUP2 / IP DUP 'q' STO * - 'a' i ROT PUT
+            -1 STEP
+            'a' 1 q 10 MOD PUT
+            q 10 / IP 'q' STO
+            IF q 10 == THEN
+              ds SIZE
+              WHILE DUP IF THEN ds OVER GET 9 == ELSE 0 END
+              REPEAT 'ds' OVER 0 PUT 1 -
+              END
+              IF DUP THEN 'ds' SWAP ds OVER GET 1 + PUT ELSE DROP END
+              0 'q' STO
+            END
+            ds q + 'ds' STO
+          NEXT
+          "3." 2 n FOR k ds k GET 48 + CHR + NEXT
+        \>>
+      \>> time EVAL
+      line EVAL
+    \>>
+    10000 \-> n
+    \<< "PISUM 10000"
+      \<< n PISUM \>> time EVAL
+      \<< 0 4 0 n 1 - FOR k DUP 2 k * 1 + / ROT + SWAP NEG NEXT DROP \>> time EVAL
+      line EVAL
+    \>>
+  \>>
+\>>
