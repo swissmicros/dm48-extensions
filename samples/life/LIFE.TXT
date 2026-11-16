@@ -1,0 +1,4 @@
+%%HP: T(3)A(R)F(.);
+\<< 25 LIFE \-> g t
+  \<< g "gens" \->TAG t "ms" \->TAG g t 1 MAX / 1000 * 1 RND "fps" \->TAG \>>
+\>>
