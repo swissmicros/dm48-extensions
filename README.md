@@ -3,7 +3,8 @@
 # DM48 native extension kit
 
 Write new calculator commands in C, build them with `arm-none-eabi-gcc` and copy one file, `NAME.ext`, to the
-calculator. [GUIDE.md](GUIDE.md) is the how-to; this file lists the kit and specifies the `.ext` file format.
+calculator. [GUIDE.md](GUIDE.md) is the how-to; this file lists the kit and specifies the `.ext` file format. The kit
+also builds language files, which translate the calculator's drawn text: [LANGUAGES.md](LANGUAGES.md).
 
 | Path | What it is |
 | --- | --- |
@@ -13,6 +14,10 @@ calculator. [GUIDE.md](GUIDE.md) is the how-to; this file lists the kit and spec
 | `tools/extpack.py` | The packer: linked ELF → `NAME.ext`. Python 3, standard library only. `--dump` prints a file. |
 | `tools/test_extpack.py` | Its tests: `cd tools && python3 -m unittest test_extpack`. |
 | `template/` | A complete extension (`POPCNT`, `REVSTR`) and its Makefile. Copy it to start. |
+| `LANGUAGES.md` | Language files (`.lng`): how to translate the calculator's drawn text, the rules and the format. |
+| `lang/template.json` | The language-file template: every translatable string with its note, width budget and what it must keep, and the character set and widths the builder checks with. Copy it to translate. |
+| `tools/lngpack.py` | The language-file builder: translated template → `CODE.lng`. Python 3, standard library only. `--dump` prints a file. |
+| `tools/test_lngpack.py` | Its tests: `cd tools && python3 -m unittest test_lngpack`. |
 | `LICENSE` | MIT. Your own extensions may use any licence. |
 
 ## The exports

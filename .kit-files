@@ -1,13 +1,17 @@
 .github/workflows/build.yml
 .gitignore
 GUIDE.md
+LANGUAGES.md
 LICENSE
 README.md
 include/dm48ext.h
 include/dm48ext_wasm.h
+lang/template.json
 ld/ext.ld
 template/.gitignore
 template/Makefile
 template/popcnt.c
 tools/extpack.py
+tools/lngpack.py
 tools/test_extpack.py
+tools/test_lngpack.py
