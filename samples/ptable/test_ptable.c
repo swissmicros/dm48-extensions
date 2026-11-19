@@ -38,8 +38,75 @@ static void test_data(void) {
   }
 }
 
+static void test_lookup(void) {
+  CHECK(elem_by_text("Fe", 2) && elem_by_text("Fe", 2)->z == 26);
+  CHECK(elem_by_text("iron", 4) && elem_by_text("iron", 4)->z == 26);
+  CHECK(elem_by_text("IRON", 4) && elem_by_text("IRON", 4)->z == 26);
+  CHECK(elem_by_text("fe", 2) == NULL);                 /* a symbol is exact case, and "fe" is no name */
+  CHECK(elem_by_text("Co", 2) && elem_by_text("Co", 2)->z == 27);
+  CHECK(elem_by_text("Ironx", 5) == NULL);
+  CHECK(elem_by_text("", 0) == NULL);
+  CHECK(elem_by_z(0) == NULL && elem_by_z(119) == NULL);
+  CHECK(elem_by_z(1) == &elements[0] && elem_by_z(118) == &elements[117]);
+}
+
+/* The mass of a symbol, from the table: the expected values follow the CSV. */
+static int64_t M(const char *sym) {
+  const elem_t *e = elem_by_text(sym, (int)strlen(sym));
+  return e ? (int64_t)e->mass_e5 : -1;
+}
+
+static int64_t mm(const char *s, char *err) {
+  int64_t m = -1;
+  err[0] = 0;
+  return molmass(s, (int)strlen(s), &m, err, 64) ? -1 : m;
+}
+
+static void test_molmass(void) {
+  char err[64];
+  CHECK(mm("H2O", err) == 2 * M("H") + M("O"));
+  CHECK(mm("Ca(OH)2", err) == M("Ca") + 2 * (M("O") + M("H")));
+  CHECK(mm("CuSO4*5H2O", err) == M("Cu") + M("S") + 4 * M("O") + 5 * (2 * M("H") + M("O")));
+  CHECK(mm("CuSO4.5H2O", err) == mm("CuSO4*5H2O", err));
+  CHECK(mm("K4[Fe(CN)6]", err) == 4 * M("K") + M("Fe") + 6 * (M("C") + M("N")));
+  CHECK(mm("Tc", err) == 9800000);
+  CHECK(mm("CO", err) == M("C") + M("O"));
+  CHECK(mm("Co", err) == M("Co"));
+  CHECK(mm("((((((((H))))))))", err) == M("H"));       /* 8 deep: allowed */
+  CHECK(mm("Na2CO3*10H2O", err) == 2 * M("Na") + M("C") + 3 * M("O") + 10 * (2 * M("H") + M("O")));
+  /* errors: never a number */
+  CHECK(mm("", err) == -1 && strcmp(err, "Bad formula") == 0);
+  CHECK(mm("h2o", err) == -1 && strcmp(err, "Bad formula") == 0);
+  CHECK(mm("H2O)", err) == -1 && strcmp(err, "Bad formula") == 0);
+  CHECK(mm("(H2O", err) == -1 && strcmp(err, "Bad formula") == 0);
+  CHECK(mm("(H2O]", err) == -1 && strcmp(err, "Bad formula") == 0);
+  CHECK(mm("()", err) == -1 && strcmp(err, "Bad formula") == 0);
+  CHECK(mm("Xx", err) == -1 && strcmp(err, "Unknown element: Xx") == 0);
+  CHECK(mm("H0", err) == -1 && strcmp(err, "Bad formula") == 0);
+  CHECK(mm("H02", err) == -1 && strcmp(err, "Bad formula") == 0);
+  CHECK(mm("H99999", err) == -1 && strcmp(err, "Bad formula") == 0);
+  CHECK(mm("H9999", err) == 9999 * M("H"));
+  CHECK(mm("H2O*", err) == -1 && strcmp(err, "Bad formula") == 0);
+  CHECK(mm("*H2O", err) == -1 && strcmp(err, "Bad formula") == 0);
+  CHECK(mm("H 2O", err) == -1 && strcmp(err, "Bad formula") == 0);
+  CHECK(mm("(((((((((H)))))))))", err) == -1 && strcmp(err, "Formula too deep") == 0);
+  CHECK(mm("Og9999(Og9999(Og9999(Og9999)9999)9999)9999", err) == -1 && strcmp(err, "Bad formula") == 0);
+}
+
+static void test_fmt_mass(void) {
+  char b[32];
+  CHECK(fmt_mass(7409300, b, sizeof b) == 6); STREQ(b, "74.093");
+  CHECK(fmt_mass(9800000, b, sizeof b) == 2); STREQ(b, "98");
+  fmt_mass(1, b, sizeof b); STREQ(b, "0.00001");
+  fmt_mass(0, b, sizeof b); STREQ(b, "0");
+  fmt_mass(2496850012345LL, b, sizeof b); STREQ(b, "24968500.12345");
+}
+
 int main(void) {
   test_data();
+  test_lookup();
+  test_molmass();
+  test_fmt_mass();
   if (fails) { printf("%d failed\n", fails); return 1; }
   printf("all passed\n");
   return 0;
