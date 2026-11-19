@@ -6,7 +6,14 @@
  */
 #include "chem.h"
 
-/* const: the table goes in the code part of the image, with no copy in RAM beyond the image itself. */
+/* const: the table goes in the code part of the image. Its texts are offsets in one pool, not pointers: no relocation
+   for each, and 2 bytes instead of 4. */
+const char elem_pool[] =
+#define ELEM_POOL
+#include "elements.inc"
+#undef ELEM_POOL
+;
+
 const elem_t elements[NELEM] = {
 #include "elements.inc"
 };
@@ -28,8 +35,8 @@ static int same(const char *s, int n, const char *t, int any_case) {
 }
 
 const elem_t *elem_by_text(const char *s, int n) {
-  for (int i = 0; i < NELEM; i++) if (same(s, n, elements[i].sym, 0)) return &elements[i];
-  for (int i = 0; i < NELEM; i++) if (same(s, n, elements[i].name, 1)) return &elements[i];
+  for (int i = 0; i < NELEM; i++) if (same(s, n, ES(&elements[i], sym), 0)) return &elements[i];
+  for (int i = 0; i < NELEM; i++) if (same(s, n, ES(&elements[i], name), 1)) return &elements[i];
   return 0;
 }
 
@@ -100,7 +107,7 @@ static int group(parser *p, int64_t *m) {
     if (at(p) >= 'a' && at(p) <= 'z') p->i++;
     const elem_t *e = 0;
     for (int j = 0; j < NELEM && !e; j++)
-      if (same(p->s + start, p->i - start, elements[j].sym, 0)) e = &elements[j];
+      if (same(p->s + start, p->i - start, ES(&elements[j], sym), 0)) e = &elements[j];
     if (!e) return fail(p, "Unknown element: ", p->s + start, p->i - start);
     g = e->mass_e5;
   } else {

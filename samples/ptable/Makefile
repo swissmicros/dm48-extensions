@@ -64,7 +64,7 @@ chem.o $(NAME).so $(NAME).wasm: elements.inc
 
 # The host tests (cc, with the sanitizers): the data, the lookups, MOLMASS, ELEM, the layout and PTABLE's key loop, with
 # stub dx_* functions. They also write ptable.pbm, the screen as PTABLE first draws it.
-TEST_SRCS = chem.c
+TEST_SRCS = chem.c ptable.c
 
 test: test_ptable
 	./test_ptable

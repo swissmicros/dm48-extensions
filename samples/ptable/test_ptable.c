@@ -12,17 +12,110 @@ static int fails;
 #define CHECK(c) do { if (!(c)) { printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #c); fails++; } } while (0)
 #define STREQ(a, b) CHECK(strcmp((a), (b)) == 0)
 
+/* ---- stub dx_* functions: a small fake calculator with a stack of objects ---- */
+
+typedef struct {
+  int type;                     /* DX_REAL, DX_STRING, DX_LIST */
+  char text[512];               /* a real as text (dx_make_real_text, or %.12g of dx_make_real), or a string's bytes */
+  int n;                        /* a string's length, or a list's item count */
+  dx_obj items[16];
+} fake_obj;
+
+static fake_obj objs[4096];
+static int nobjs;
+static dx_obj stack[64];
+static int depth;
+static int last_error;          /* the code recorded by dx_error, 0x70000 for dx_error_msg */
+static char last_msg[256];
+
+static fake_obj *O(dx_obj h) { return h >= 1 && (int)h <= nobjs ? &objs[h - 1] : NULL; }
+static dx_obj new_obj(int type) { objs[nobjs].type = type; objs[nobjs].n = 0; objs[nobjs].text[0] = 0; return (dx_obj)++nobjs; }
+
+int dx_depth(void) { return depth; }
+dx_obj dx_peek(int level) { return level >= 1 && level <= depth ? stack[depth - level] : 0; }
+int dx_drop(int n) { if (n > depth) return -1; depth -= n; return 0; }
+int dx_push(dx_obj o) { stack[depth++] = o; return 0; }
+int dx_type(dx_obj o) { return O(o) ? O(o)->type : DX_OTHER; }
+int dx_get_real(dx_obj o, double *out) {
+  if (dx_type(o) != DX_REAL) return dx_error(DX_ERR_BAD_TYPE);
+  sscanf(O(o)->text, "%lf", out);
+  return 0;
+}
+dx_obj dx_make_real(double v) { dx_obj h = new_obj(DX_REAL); snprintf(O(h)->text, 512, "%.12g", v); return h; }
+dx_obj dx_make_real_text(const char *text) {
+  double v;
+  char extra;
+  if (sscanf(text, "%lf%c", &v, &extra) != 1) { dx_error(DX_ERR_BAD_VALUE); return 0; }   /* a number, all of it */
+  dx_obj h = new_obj(DX_REAL);
+  snprintf(O(h)->text, 512, "%s", text);
+  return h;
+}
+int dx_string_len(dx_obj o) { return dx_type(o) == DX_STRING ? O(o)->n : dx_error(DX_ERR_BAD_TYPE); }
+int dx_get_string(dx_obj o, char *buf, int cap) {
+  if (dx_type(o) != DX_STRING) return dx_error(DX_ERR_BAD_TYPE);
+  int n = O(o)->n < cap ? O(o)->n : cap;
+  memcpy(buf, O(o)->text, (size_t)n);
+  return n;
+}
+dx_obj dx_make_string(const char *bytes, int n) {
+  dx_obj h = new_obj(DX_STRING);
+  memcpy(O(h)->text, bytes, (size_t)n);
+  O(h)->text[n] = 0;
+  O(h)->n = n;
+  return h;
+}
+int dx_list_len(dx_obj o) { return dx_type(o) == DX_LIST ? O(o)->n : -1; }
+dx_obj dx_list_item(dx_obj o, int i) { return dx_type(o) == DX_LIST && i >= 1 && i <= O(o)->n ? O(o)->items[i - 1] : 0; }
+dx_obj dx_make_list(const dx_obj *items, int n) {
+  dx_obj h = new_obj(DX_LIST);
+  for (int i = 0; i < n; i++) O(h)->items[i] = items[i];
+  O(h)->n = n;
+  return h;
+}
+int dx_error(int code) { last_error = code; return -1; }
+int dx_error_msg(const char *msg) { last_error = 0x70000; snprintf(last_msg, sizeof last_msg, "%s", msg); return -1; }
+int dx_poll(void) { return 0; }
+
+static const char *reg_names[8];
+static dx_cmd_fn reg_fns[8];
+static int nreg;
+int dx_register(const char *name, int nargs, dx_cmd_fn fn) { (void)nargs; reg_names[nreg] = name; reg_fns[nreg++] = fn; return 0; }
+
+/* Run a registered command on the fake stack: its return value, with the stack restored on failure as the
+   calculator does. */
+static int run(const char *name) {
+  if (!nreg) dx_init();
+  for (int i = 0; i < nreg; i++)
+    if (strcmp(reg_names[i], name) == 0) {
+      dx_obj saved[64];
+      int d = depth;
+      memcpy(saved, stack, sizeof stack);
+      last_error = 0;
+      last_msg[0] = 0;
+      int r = reg_fns[i]();
+      if (r) { memcpy(stack, saved, sizeof stack); depth = d; }
+      return r;
+    }
+  printf("no command %s\n", name);
+  fails++;
+  return -1;
+}
+static void push_real(double v) { dx_push(dx_make_real(v)); }
+static void push_str(const char *s) { dx_push(dx_make_string(s, (int)strlen(s))); }
+static const char *item_text(dx_obj list, int i) { fake_obj *o = O(dx_list_item(list, i)); return o ? o->text : "?"; }
+static int item_type(dx_obj list, int i) { return dx_type(dx_list_item(list, i)); }
+
 static void test_data(void) {
   const elem_t *fe = &elements[25];
   CHECK(fe->z == 26);
-  STREQ(fe->sym, "Fe");
-  STREQ(fe->name, "Iron");
+  STREQ(ES(fe, sym), "Fe");
+  STREQ(ES(fe, name), "Iron");
   CHECK(fe->mass_e5 == 5584500);
   STREQ(cat_names[fe->cat], "Transition metal");
   CHECK(fe->row == 3 && fe->col == 7);
   CHECK(!fe->gas);
   CHECK(elements[0].gas);                                   /* H */
-  STREQ(elements[42].mass, "[98]");                         /* Tc */
+  STREQ(ES(&elements[42], mass), "[98]");                         /* Tc */
   CHECK(elements[42].mass_e5 == 9800000);
   CHECK(elements[56].row == 7 && elements[56].col == 2);    /* La */
   CHECK(elements[70].row == 7 && elements[70].col == 16);   /* Lu */
@@ -30,10 +123,10 @@ static void test_data(void) {
   CHECK(elements[71].row == 5 && elements[71].col == 3);    /* Hf */
   CHECK(elements[117].row == 6 && elements[117].col == 17); /* Og */
   CHECK(elements[1].row == 0 && elements[1].col == 17);     /* He */
-  CHECK(elements[5].subl && elements[5].mp[0] == 0);        /* C sublimes */
+  CHECK(elements[5].subl && ES(&elements[5], mp)[0] == 0);        /* C sublimes */
   for (int i = 0; i < NELEM; i++) {
     CHECK(elements[i].z == i + 1);
-    CHECK(elements[i].sym[0] && elements[i].name[0] && elements[i].mass[0]);
+    CHECK(ES(&elements[i], sym)[0] && ES(&elements[i], name)[0] && ES(&elements[i], mass)[0]);
     CHECK(elements[i].cat < NCAT);
   }
 }
@@ -102,8 +195,84 @@ static void test_fmt_mass(void) {
   fmt_mass(2496850012345LL, b, sizeof b); STREQ(b, "24968500.12345");
 }
 
+static void check_fe_list(dx_obj l) {
+  CHECK(dx_type(l) == DX_LIST && dx_list_len(l) == 10);
+  CHECK(item_type(l, 1) == DX_REAL); STREQ(item_text(l, 1), "26");
+  CHECK(item_type(l, 2) == DX_STRING); STREQ(item_text(l, 2), "Fe");
+  STREQ(item_text(l, 3), "Iron");
+  CHECK(item_type(l, 4) == DX_REAL); STREQ(item_text(l, 4), "55.845");
+  STREQ(item_text(l, 5), "Transition metal");
+  CHECK(item_type(l, 6) == DX_REAL); STREQ(item_text(l, 6), "1.83");
+  STREQ(item_text(l, 7), "7.87");
+  STREQ(item_text(l, 8), "1538");
+  STREQ(item_text(l, 9), "2861");
+  CHECK(item_type(l, 10) == DX_STRING); STREQ(item_text(l, 10), "[Ar] 3d6 4s2");
+}
+
+static void test_commands(void) {
+  depth = 0;
+  push_real(26);
+  CHECK(run("ELEM") == 0 && depth == 1);
+  check_fe_list(dx_peek(1));
+  depth = 0;
+  push_str("Fe");
+  CHECK(run("ELEM") == 0 && depth == 1);
+  check_fe_list(dx_peek(1));
+  depth = 0;
+  push_str("iron");
+  CHECK(run("ELEM") == 0);
+  check_fe_list(dx_peek(1));
+
+  depth = 0;                                              /* Tc: the bracketed mass is the number 98 */
+  push_real(43);
+  CHECK(run("ELEM") == 0);
+  STREQ(item_text(dx_peek(1), 4), "98");
+  depth = 0;                                              /* He: no mp, so the empty string */
+  push_str("He");
+  CHECK(run("ELEM") == 0);
+  CHECK(item_type(dx_peek(1), 8) == DX_STRING); STREQ(item_text(dx_peek(1), 8), "");
+  STREQ(item_text(dx_peek(1), 7), "0.164");               /* g/L */
+
+  depth = 0;
+  push_real(0);
+  CHECK(run("ELEM") == -1 && last_error == DX_ERR_BAD_VALUE && depth == 1);
+  push_real(119);
+  CHECK(run("ELEM") == -1 && last_error == DX_ERR_BAD_VALUE);
+  push_real(2.5);
+  CHECK(run("ELEM") == -1 && last_error == DX_ERR_BAD_VALUE);
+  push_str("Xx");
+  CHECK(run("ELEM") == -1 && last_error == DX_ERR_BAD_VALUE);
+  dx_push(dx_make_list(NULL, 0));
+  CHECK(run("ELEM") == -1 && last_error == DX_ERR_BAD_TYPE);
+
+  depth = 0;
+  push_str("H2O");
+  CHECK(run("MOLMASS") == 0 && depth == 1);
+  CHECK(dx_type(dx_peek(1)) == DX_REAL); STREQ(O(dx_peek(1))->text, "18.015");
+  push_str("Ca(OH)2");
+  CHECK(run("MOLMASS") == 0); STREQ(O(dx_peek(1))->text, "74.092");
+  push_str("H2Xx");
+  CHECK(run("MOLMASS") == -1 && last_error == 0x70000); STREQ(last_msg, "Unknown element: Xx");
+  push_str("H2O)");
+  CHECK(run("MOLMASS") == -1); STREQ(last_msg, "Bad formula");
+  push_real(1);
+  CHECK(run("MOLMASS") == -1 && last_error == DX_ERR_BAD_TYPE);
+  char longf[300];                                        /* longer than MOLMASS's 256-byte buffer */
+  for (int i = 0; i < 299; i++) longf[i] = 'H';
+  longf[299] = 0;
+  push_str(longf);
+  CHECK(run("MOLMASS") == -1); STREQ(last_msg, "Formula too long");
+  longf[256] = 0;                                         /* 256 bytes: still taken */
+  push_str(longf);
+  CHECK(run("MOLMASS") == 0);
+  push_str("H");
+  O(dx_peek(1))->n = 0;                                   /* "" */
+  CHECK(run("MOLMASS") == -1); STREQ(last_msg, "Bad formula");
+}
+
 int main(void) {
   test_data();
+  test_commands();
   test_lookup();
   test_molmass();
   test_fmt_mass();

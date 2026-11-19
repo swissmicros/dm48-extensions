@@ -16,9 +16,12 @@ typedef struct {
   uint8_t gas;                        /* density in g/L, not g/cm3 */
   uint8_t subl;                       /* bp is a sublimation point (no mp at 1 atm) */
   uint32_t mass_e5;                   /* the mass in units of 1e-5 u: 55.845 -> 5584500 */
-  const char *sym, *name, *mass, *en, *density, *mp, *bp, *config;   /* display text, "" when missing; mass as
-                                         shown: "55.845", "[98]" */
+  uint16_t sym, name, mass, en, density, mp, bp, config;   /* display texts, as offsets in elem_pool (ES gives the
+                                         C string): "" when missing; mass as shown, "55.845" or "[98]" */
 } elem_t;
+
+extern const char elem_pool[];        /* every text of the table, NUL-terminated, each once */
+#define ES(e, field) (elem_pool + (e)->field)
 
 extern const elem_t elements[NELEM];  /* index z - 1 */
 extern const char *const cat_names[NCAT];
@@ -31,5 +34,7 @@ const elem_t *elem_by_text(const char *s, int n);      /* a symbol (exact case),
    At most 8 nested brackets. */
 int molmass(const char *s, int n, int64_t *mass_e5, char *err, int errcap);
 int fmt_mass(int64_t mass_e5, char *buf, int cap);     /* "74.09216": no trailing zeros, a C string; its length */
+
+dx_obj elem_list(const elem_t *e);                     /* ptable.c: { Z "Sym" "Name" mass "Category" EN density mp bp "Config" } */
 
 #endif /* CHEM_H */
