@@ -13,3 +13,4 @@ A sample copied from `template/` sets `KIT = ../..` in its Makefile, since it si
 | [mandel](mandel/) | `MANDEL`: the Mandelbrot set at 400 × 240 in fixed point, shown band by band with `dx_show`, timed with `dx_ms`. |
 | [life](life/) | `LIFE`: Conway's Game of Life on the whole screen, 8 cells at a time, with keys (`dx_key`) and an fps label. |
 | [mine](mine/) | `MINE`: a minefield to cross, a small game driven by `dx_key`, with its own font and drawing. |
+| [ptable](ptable/) | `PTABLE`, `ELEM` and `MOLMASS`: an interactive periodic table, element data as lists, and exact molar masses of formulas. A `const` table generated from a CSV, and host tests. |
