@@ -97,7 +97,40 @@ static int molmass_cmd(void) {
   return replace(dx_make_real_text(num));
 }
 
+/* ---- PTABLE ---- */
+
+enum { KEY_UP = 25, KEY_LEFT = 34, KEY_DOWN = 35, KEY_RIGHT = 36, KEY_ENTER = 51, KEY_BACKSPACE = 55 };
+
+static int cur = 1;                                      /* the selected element: kept for the next PTABLE */
+
+static int ptable(void) {
+  draw_table(cur);
+  if (dx_show(400, 240, frame)) return -1;
+  for (;;) {
+    if (dx_poll()) return -1;                            /* ON: abandon, nothing pushed (dx_poll's rule) */
+    int k = dx_key(), dir;
+    switch (k) {
+    case KEY_UP: dir = DIR_UP; break;
+    case KEY_DOWN: dir = DIR_DOWN; break;
+    case KEY_LEFT: dir = DIR_LEFT; break;
+    case KEY_RIGHT: dir = DIR_RIGHT; break;
+    case KEY_ENTER: {
+      dx_obj l = elem_list(elem_by_z(cur));
+      return !l || dx_push(l) ? -1 : 0;
+    }
+    case KEY_BACKSPACE: return 0;                        /* a clean stop: nothing pushed */
+    default: continue;                                   /* no key, or one that does nothing here */
+    }
+    int n = nav(cur, dir);
+    if (n == cur) continue;
+    cur = n;
+    draw_table(cur);                                     /* a new frame only when the selection changed */
+    if (dx_show(400, 240, frame)) return -1;
+  }
+}
+
 int dx_init(void) {
+  if (dx_register("PTABLE", 0, ptable)) return -1;
   if (dx_register("ELEM", 1, elem)) return -1;
   if (dx_register("MOLMASS", 1, molmass_cmd)) return -1;
   return 0;

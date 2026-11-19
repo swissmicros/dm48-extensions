@@ -74,7 +74,14 @@ dx_obj dx_make_list(const dx_obj *items, int n) {
 }
 int dx_error(int code) { last_error = code; return -1; }
 int dx_error_msg(const char *msg) { last_error = 0x70000; snprintf(last_msg, sizeof last_msg, "%s", msg); return -1; }
-int dx_poll(void) { return 0; }
+/* Keys for PTABLE's loop: dx_key gives them in order, then 0. Once they have all been taken, dx_poll reports ON,
+   so a loop that never stops by itself ends the test instead of hanging it. */
+static int keys[32], nkeys, keyi, shows, show_w, show_h;
+static void queue_keys(const int *k, int n) { memcpy(keys, k, sizeof(int) * (size_t)n); nkeys = n; keyi = 0; }
+int dx_key(void) { return keyi < nkeys ? keys[keyi++] : (keyi++, 0); }
+int dx_poll(void) { return keyi > nkeys; }
+int dx_show(int w, int h, const uint8_t *bits) { (void)bits; shows++; show_w = w; show_h = h; return 0; }
+uint32_t dx_ms(void) { return 0; }
 
 static const char *reg_names[8];
 static dx_cmd_fn reg_fns[8];
@@ -270,8 +277,101 @@ static void test_commands(void) {
   CHECK(run("MOLMASS") == -1); STREQ(last_msg, "Bad formula");
 }
 
+static void test_nav(void) {
+  CHECK(nav(2, DIR_UP) == 2);                             /* He: nothing above */
+  CHECK(nav(103, DIR_DOWN) == 103);                       /* Lr: the last row */
+  CHECK(nav(1, DIR_LEFT) == 1);
+  CHECK(nav(1, DIR_RIGHT) == 2);                          /* H -> He across the gap */
+  CHECK(nav(1, DIR_DOWN) == 3);
+  CHECK(nav(39, DIR_DOWN) == 57);                         /* Y -> La: the markers are skipped */
+  CHECK(nav(57, DIR_UP) == 39);                           /* La -> Y */
+  CHECK(nav(58, DIR_UP) == 104);                          /* Ce (col 3) -> Rf */
+  CHECK(nav(56, DIR_RIGHT) == 72);                        /* Ba -> Hf, past the marker */
+  CHECK(nav(72, DIR_LEFT) == 56);
+  CHECK(nav(71, DIR_UP) == 117);                          /* Lu (col 16) -> Ts */
+  CHECK(nav(26, DIR_DOWN) == 44);                         /* Fe -> Ru */
+  CHECK(nav(118, DIR_RIGHT) == 118);
+  CHECK(nav(57, DIR_DOWN) == 89);                         /* La -> Ac */
+}
+
+static int ends_with(const char *s, const char *t) {
+  size_t a = strlen(s), b = strlen(t);
+  return a >= b && strcmp(s + a - b, t) == 0;
+}
+
+static void test_info(void) {
+  char b[64];
+  info_line(26, 0, b, sizeof b); CHECK(strstr(b, "26") && strstr(b, "Iron"));
+  info_line(26, 1, b, sizeof b); CHECK(strstr(b, "55.845"));
+  info_line(26, 2, b, sizeof b); STREQ(b, "Transition metal");
+  info_line(26, 3, b, sizeof b); STREQ(b, "[Ar] 3d6 4s2");
+  info_line(26, 4, b, sizeof b); CHECK(strstr(b, "1.83") && ends_with(b, "7.87 g/cm3"));
+  info_line(1, 4, b, sizeof b); CHECK(ends_with(b, "0.082 g/L"));
+  info_line(26, 5, b, sizeof b); CHECK(strstr(b, "1538") && strstr(b, "2861"));
+  info_line(6, 5, b, sizeof b); CHECK(strstr(b, "sublimes") && strstr(b, "3825"));   /* C */
+  info_line(118, 4, b, sizeof b); CHECK(strstr(b, "-"));                              /* Og: nothing known */
+  info_line(43, 1, b, sizeof b); CHECK(strstr(b, "[98]"));
+  for (int z = 1; z <= NELEM; z++)                        /* every line fits the info box: 172 px at 6 px a character */
+    for (int i = 0; i < 6; i++) CHECK(info_line(z, i, b, sizeof b) <= (i < 3 ? 28 : 35));
+}
+
+/* The share of dark pixels in element z's cell. */
+static double cell_dark(int z) {
+  const elem_t *e = elem_by_z(z);
+  int x0 = 2 + e->col * 22, y0 = e->row < 7 ? e->row * 22 : 160 + (e->row - 7) * 22, dark = 0;
+  for (int y = y0; y < y0 + 21; y++)
+    for (int x = x0; x < x0 + 21; x++) dark += frame[y * 50 + (x >> 3)] >> (x & 7) & 1;
+  return dark / (21.0 * 21.0);
+}
+
+static void write_pbm(const char *path) {
+  FILE *f = fopen(path, "wb");
+  if (!f) return;
+  fprintf(f, "P4\n400 240\n");
+  for (int i = 0; i < 50 * 240; i++) {                    /* GROB bytes are lowest-bit-leftmost; PBM is MSB-first */
+    uint8_t b = frame[i], r = 0;
+    for (int k = 0; k < 8; k++) r |= (uint8_t)(((b >> k) & 1) << (7 - k));
+    fputc(r, f);
+  }
+  fclose(f);
+}
+
+static void test_draw(void) {
+  draw_table(26);
+  CHECK(cell_dark(26) > 0.5);                             /* the cursor: Fe's cell inverted */
+  CHECK(cell_dark(27) < 0.5);
+  CHECK(cell_dark(1) < 0.5);
+  write_pbm("ptable.pbm");
+}
+
+static void test_ptable_cmd(void) {
+  depth = 0;
+  int k1[] = { 35, 36, 51 };                              /* down, right, ENTER: H -> Li -> Be */
+  queue_keys(k1, 3);
+  shows = 0;
+  CHECK(run("PTABLE") == 0 && depth == 1);
+  CHECK(dx_type(dx_peek(1)) == DX_LIST); STREQ(item_text(dx_peek(1), 1), "4");
+  CHECK(shows == 3 && show_w == 400 && show_h == 240);  /* the first frame, then one for each move */
+  int k2[] = { 51 };                                      /* again: it starts at Be */
+  queue_keys(k2, 1);
+  CHECK(run("PTABLE") == 0 && depth == 2); STREQ(item_text(dx_peek(1), 1), "4");
+  int k3[] = { 36, 55 };                                  /* right, backspace: nothing pushed */
+  queue_keys(k3, 2);
+  CHECK(run("PTABLE") == 0 && depth == 2);
+  int k4[] = { 25, 25, 25 };                              /* up from B (it moved to B), then ON: -1, nothing pushed */
+  queue_keys(k4, 3);
+  CHECK(run("PTABLE") == -1 && depth == 2);
+  int k5[] = { 11, 99, 51 };                              /* keys that are not moves are ignored */
+  queue_keys(k5, 3);
+  CHECK(run("PTABLE") == 0 && depth == 3); STREQ(item_text(dx_peek(1), 1), "5");
+}
+
 int main(void) {
   test_data();
+  test_nav();
+  test_info();
+  test_draw();
+  test_ptable_cmd();
   test_commands();
   test_lookup();
   test_molmass();

@@ -35,6 +35,13 @@ const elem_t *elem_by_text(const char *s, int n);      /* a symbol (exact case),
 int molmass(const char *s, int n, int64_t *mass_e5, char *err, int errcap);
 int fmt_mass(int64_t mass_e5, char *buf, int cap);     /* "74.09216": no trailing zeros, a C string; its length */
 
-dx_obj elem_list(const elem_t *e);                     /* ptable.c: { Z "Sym" "Name" mass "Category" EN density mp bp "Config" } */
+dx_obj elem_list(const elem_t *e);
+
+/* table.c: PTABLE's screen, 400 x 240 in HP 48 GROB rows (50 bytes a row, the lowest bit leftmost). */
+enum { DIR_UP, DIR_DOWN, DIR_LEFT, DIR_RIGHT };
+extern uint8_t frame[50 * 240];
+int nav(int z, int dir);                               /* the next element that way, or z when there is none */
+void draw_table(int z);                                /* the whole screen, z selected */
+int info_line(int z, int i, char *buf, int cap);       /* the info box's line i (0-5) as a C string; its length */                     /* ptable.c: { Z "Sym" "Name" mass "Category" EN density mp bp "Config" } */
 
 #endif /* CHEM_H */
