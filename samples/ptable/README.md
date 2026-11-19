@@ -30,7 +30,8 @@ mp 1538  bp 2861 °C
 That is the name, the atomic mass, the category, the electron configuration, the Pauling electronegativity, the
 density, and the melting and boiling points. A mass in brackets, such as Tc's `[98]`, is the mass number of the most
 stable isotope of an element that has no standard atomic weight. Density is in g/cm³, except for the gases (H, He, N, O,
-F, Ne, Cl, Ar, Kr, Xe, Rn), whose density is in g/L. For C and As, which sublime, the box shows `sublimes` and that
+F, Ne, Cl, Ar, Kr, Xe, Rn), whose density is in g/L at 25 °C and 1 atm (not at 0 °C, STP: O is 1.308 g/L here,
+1.429 at STP). For C and As, which sublime, the box shows `sublimes` and that
 temperature. A `-` means the value is not known. From Fm (100) on, only predictions exist for the bulk properties,
 and the table leaves them out.
 
@@ -112,5 +113,6 @@ It takes about 28 KB of the calculator's extension memory: the frame's 12 KB, an
 `elements.csv` is the source: one row per element, readable and easy to correct. It was made from the database of
 the [mendeleev](https://github.com/lmmentel/mendeleev) Python package (MIT licence), version 1.3.0. Masses are
 standard atomic weights, to at most 5 decimals. Temperatures were converted from kelvin to °C, and gas densities
-from g/cm³ to g/L. The values are for the usual form of each element (white P, monoclinic S, grey Se, white Sn).
-Lu and Lr are counted with the lanthanides and actinides, where this layout draws them.
+(at 25 °C and 1 atm) from g/cm³ to g/L. The values are for the usual form of each element (white P, monoclinic S, grey Se, white Sn).
+Lu and Lr are counted with the lanthanides and actinides, where this layout draws them. One value was corrected by
+hand: Lu's electronegativity is 1.27 (the database has 1.0).

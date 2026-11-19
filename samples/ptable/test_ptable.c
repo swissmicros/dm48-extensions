@@ -131,6 +131,7 @@ static void test_data(void) {
   CHECK(elements[117].row == 6 && elements[117].col == 17); /* Og */
   CHECK(elements[1].row == 0 && elements[1].col == 17);     /* He */
   CHECK(elements[5].subl && ES(&elements[5], mp)[0] == 0);        /* C sublimes */
+  STREQ(ES(&elements[70], en), "1.27");                    /* Lu: Pauling 1.27 (the source had 1.0) */
   for (int i = 0; i < NELEM; i++) {
     CHECK(elements[i].z == i + 1);
     CHECK(ES(&elements[i], sym)[0] && ES(&elements[i], name)[0] && ES(&elements[i], mass)[0]);
