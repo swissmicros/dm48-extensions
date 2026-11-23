@@ -30,6 +30,15 @@ typedef uint32_t dx_obj;                       /* opaque handle; 0 = none/failed
 enum { DX_REAL = 0, DX_COMPLEX = 1, DX_STRING = 2, DX_LIST = 5, DX_BINT = 10, DX_GROB = 11, DX_OTHER = -1 };
 enum { DX_DM48 = 48, DX_DM50 = 50 };
 enum { DX_ERR_TOO_FEW = 0x201, DX_ERR_BAD_TYPE = 0x202, DX_ERR_BAD_VALUE = 0x203, DX_ERR_NO_MEM = 0x001 };
+/* dx_file_open's modes: READ the file must exist, read only; WRITE created or emptied; APPEND created when missing,
+   the position at the end; UPDATE must exist. All but READ read and write. */
+enum { DX_FILE_READ = 1, DX_FILE_WRITE = 2, DX_FILE_APPEND = 3, DX_FILE_UPDATE = 4 };
+enum { DX_ERR_NO_FILE = 0xE811, DX_ERR_NO_FOLDER = 0xE812, DX_ERR_FILE_EXISTS = 0xE813, DX_ERR_DISK_FULL = 0xE814,
+       DX_ERR_DENIED = 0xE815, DX_ERR_DISK = 0xE816, DX_ERR_IN_USE = 0xE817, DX_ERR_TOO_MANY_FILES = 0xE818,
+       DX_ERR_BAD_NAME = 0xE819 };
+/* The USB serial line's error (GUIDE.md "USB serial and infrared"). */
+enum { DX_ERR_NOT_CONNECTED = 0xE821 };
+enum { DX_SERIAL_LINE = 127 };   /* the longest line dx_serial_write sends */
 
 /* Exported by the firmware, @1 each. */
 int    dx_depth(void);                                     /* @1 */
@@ -67,6 +76,33 @@ int    dx_fw_version(char *buf, int cap);                  /* C string written (
 int    dx_show(int w, int h, const uint8_t *bits);         /* @1 */
 uint32_t dx_ms(void);                                      /* ms from an arbitrary start, wrapping: use differences */ /* @1 */
 int    dx_key(void);                                       /* next queued key as KEY numbers it (rc), 0 = none; never waits; never ON */ /* @1 */
+/* Files (GUIDE.md "Files"). A path is a C string of at most 127 bytes, absolute ("/DM48/DATA/LOG.TXT"): names of
+   printable ASCII without " * : < > ? \ |, separated by /, compared without case; a bad one is Bad file name (#E819).
+   ANY path may be read, written, renamed and deleted: the calculator's own files too. A file number (1 or 2: at most 2
+   open) is valid only during the command that opened it; files left open are closed when the command returns. Errors:
+   No such file #E811, No such folder #E812, File exists #E813, Disk full #E814, Access denied #E815, Disk error #E816,
+   File in use #E817, Too many open files #E818, Bad file name #E819; a bad file number, mode, count or buffer is Bad
+   Argument Value. No folder can be listed (the calculator's system cannot). */
+int    dx_file_open(const char *path, int mode);           /* DX_FILE_ mode: a file number, or -1 */ /* @1 */
+int    dx_file_read(int f, void *buf, int n);              /* bytes read: fewer than n only at the end (0 there), or -1 */ /* @1 */
+int    dx_file_write(int f, const void *buf, int n);       /* n, or -1 (a short write is Disk full) */ /* @1 */
+int    dx_file_seek(int f, int pos);                       /* the position 0 .. size from the start: 0, or -1 */ /* @1 */
+int    dx_file_tell(int f);                                /* the position, or -1 */ /* @1 */
+int    dx_file_size(int f);                                /* the size now, or -1 */ /* @1 */
+int    dx_file_close(int f);                               /* 0, or -1 (a written file may then be incomplete) */ /* @1 */
+int    dx_file_delete(const char *path);                   /* a file, or an empty folder */ /* @1 */
+int    dx_file_rename(const char *from, const char *to);   /* to must not exist; it may be in another folder */ /* @1 */
+int    dx_file_mkdir(const char *path);                    /* 0 also when it exists; its parent must exist */ /* @1 */
+int    dx_file_exists(const char *path);                   /* 1 a file of that name, 0 none, -1 a bad path */ /* @1 */
+/* USB serial and infrared (GUIDE.md "USB serial and infrared"). Lines go over DMCP's USB serial console, channel 2,
+   while SETUP's USB console is ON and a program on the PC has the port open (dx_serial_connected); a line is printable
+   ASCII (0x20-0x7E) and tab, at most DX_SERIAL_LINE bytes out, up to 255 in, without its line end. Not connected:
+   Not connected #E821. dx_ir_send: bytes for an HP 82240B printer through the infrared LED, paced by PRTPAR's delay
+   (as PRINT's), at most 4096 a call. */
+int    dx_serial_connected(void);                          /* 1 connected, 0 not */ /* @1 */
+int    dx_serial_write(const char *line, int n);           /* one line of n bytes (its end added): 0, or -1 */ /* @1 */
+int    dx_serial_read(char *buf, int cap);                 /* the next line received: its length, 0 none yet, or -1 */ /* @1 */
+int    dx_ir_send(const uint8_t *bytes, int n);            /* 0, or -1 */ /* @1 */
 
 /* An extension provides: */
 typedef int (*dx_cmd_fn)(void);                /* 0 ok, nonzero = failed (error recorded or Bad Argument Value) */

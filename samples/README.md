@@ -14,3 +14,5 @@ A sample copied from `template/` sets `KIT = ../..` in its Makefile, since it si
 | [life](life/) | `LIFE`: Conway's Game of Life on the whole screen, 8 cells at a time, with keys (`dx_key`) and an fps label. |
 | [mine](mine/) | `MINE`: a minefield to cross, a small game driven by `dx_key`, with its own font and drawing. |
 | [ptable](ptable/) | `PTABLE`, `ELEM` and `MOLMASS`: an interactive periodic table, element data as lists, and exact molar masses of formulas. A `const` table generated from a CSV, and host tests. |
+| [filedemo](filedemo/) | `FWRITE`, `FREAD`, `FDEL` and five more: the calculator's files from RPL with `dx_file_*`. |
+| [serdemo](serdemo/) | `USBSEND`, `USBRECV` and four more: lines to and from a PC over USB (`dx_serial_*`, with `tools/dm48serial.py`), and an HP 82240B printer by infrared (`dx_ir_send`). |

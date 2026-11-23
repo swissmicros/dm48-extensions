@@ -18,6 +18,8 @@ also builds language files, which translate the calculator's drawn text: [LANGUA
 | `lang/template.json` | The language-file template: every translatable string with its note, width budget and what it must keep, and the character set and widths the builder checks with. Copy it to translate. |
 | `tools/lngpack.py` | The language-file builder: translated template → `CODE.lng`. Python 3, standard library only. `--dump` prints a file. |
 | `tools/test_lngpack.py` | Its tests: `cd tools && python3 -m unittest test_lngpack`. |
+| `tools/dm48serial.py` | Talks to an extension's USB serial line from a PC (`dx_serial_*`; GUIDE.md "USB serial and infrared"). |
+| `tools/test_dm48serial.py` | Its tests: `cd tools && python3 -m unittest test_dm48serial`. |
 | `LICENSE` | MIT. Your own extensions may use any licence. |
 
 ## The exports
@@ -34,6 +36,8 @@ Each is `@1`, declared in `include/dm48ext.h`, which says what each one takes an
 | Graphics | `dx_grob_size`, `dx_get_grob_bits`, `dx_make_grob`, `dx_show` |
 | Errors and ON | `dx_error`, `dx_error_msg`, `dx_poll` |
 | Time and keys | `dx_ms`, `dx_key` |
+| Files ([GUIDE.md](GUIDE.md#files)) | `dx_file_open`, `dx_file_read`, `dx_file_write`, `dx_file_seek`, `dx_file_tell`, `dx_file_size`, `dx_file_close`, `dx_file_delete`, `dx_file_rename`, `dx_file_mkdir`, `dx_file_exists` |
+| USB serial and infrared ([GUIDE.md](GUIDE.md#usb-serial-and-infrared)) | `dx_serial_connected`, `dx_serial_write`, `dx_serial_read`, `dx_ir_send` |
 | The calculator | `dx_product`, `dx_fw_version` |
 | Registration (in `dx_init` only) | `dx_register` |
 

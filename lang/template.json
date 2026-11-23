@@ -952,6 +952,9 @@
   "AXES": {
     "note": "Drawn in: PLOT OPTIONS (2D) (label)."
   },
+  "Access denied": {
+    "note": "Error message"
+  },
   "Acknowledged": {
     "note": "Error message"
   },
@@ -1081,6 +1084,9 @@
     "note": "Error message"
   },
   "Bad Packet Block Check": {
+    "note": "Error message"
+  },
+  "Bad file name": {
     "note": "Error message"
   },
   "Bad state: {file}, fresh start": {
@@ -1838,6 +1844,12 @@
     "note": "Error message"
   },
   "Directory Recursion": {
+    "note": "Error message"
+  },
+  "Disk error": {
+    "note": "Error message"
+  },
+  "Disk full": {
     "note": "Error message"
   },
   "Display ticking clock?": {
@@ -2814,6 +2826,12 @@
     "note": "The Equation Library: a variable's description, after its name and `: ` in the VARS list (`L: length`; a row of 21 cells beside ▶). Its longest name is 2 cells, so the description has 17 (or the English's own, when longer). The name stays.",
     "cells": 17
   },
+  "File exists": {
+    "note": "Error message"
+  },
+  "File in use": {
+    "note": "Error message"
+  },
   "Files in ": {
     "note": "Error message"
   },
@@ -3745,6 +3763,12 @@
   "No stat data to plot": {
     "note": "Error message"
   },
+  "No such file": {
+    "note": "Error message"
+  },
+  "No such folder": {
+    "note": "Error message"
+  },
   "Non-Empty Directory": {
     "note": "Error message"
   },
@@ -3778,6 +3802,9 @@
   "Not Yet Implemented": {
     "note": "Message line 2 under a key's name: it has the whole 22-cell, 131 px line to itself.",
     "px": 131
+  },
+  "Not connected": {
+    "note": "Error message"
   },
   "Not loaded": {
     "note": "board: a notice on the DM48's second status line, one line of 33 characters of the small font until the next key; translated each time it is drawn. Load state's question answered with another key."
@@ -5030,6 +5057,9 @@
     "note": "Error message"
   },
   "Too Many Unknowns": {
+    "note": "Error message"
+  },
+  "Too many open files": {
     "note": "Error message"
   },
   "Toroid Inductance": {

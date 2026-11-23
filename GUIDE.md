@@ -156,6 +156,182 @@ code: on the DM48, EXIT is ON, which breaks the program, and only `dx_poll` sees
 frame. In the host simulator (`fwcli --ext`), which has no screen, each `dx_show` is logged as
 `show <w>x<h>` on standard error.
 
+## Files
+
+Eleven calls read and write files on the calculator's disk, the one you see over USB disk mode:
+
+| Call | Does |
+| --- | --- |
+| `dx_file_open(path, mode)` | opens a file: its file number (1 or 2), or -1 |
+| `dx_file_read(f, buf, n)` | reads up to `n` bytes at the position: how many (fewer only at the end, 0 there) |
+| `dx_file_write(f, buf, n)` | writes `n` bytes at the position, extending the file at its end: `n` |
+| `dx_file_seek(f, pos)` | moves the position, 0 to the size, counted from the start |
+| `dx_file_tell(f)`, `dx_file_size(f)` | the position, the size |
+| `dx_file_close(f)` | closes it |
+| `dx_file_delete(path)` | deletes a file, or an empty folder |
+| `dx_file_rename(from, to)` | renames or moves a file or a folder; `to` must not exist |
+| `dx_file_mkdir(path)` | makes a folder (its parent must exist); one that exists already is fine |
+| `dx_file_exists(path)` | 1 when a file of that name exists, else 0 (a folder is not a file) |
+
+The modes of `dx_file_open`:
+
+| Mode | The file | Starts at | Writes |
+| --- | --- | --- | --- |
+| `DX_FILE_READ` | must exist | 0 | no |
+| `DX_FILE_WRITE` | created, or emptied | 0 | yes |
+| `DX_FILE_APPEND` | created when missing | the end | yes |
+| `DX_FILE_UPDATE` | must exist, kept | 0 | yes |
+
+Every mode reads. A file cannot be made shorter except by opening it with `DX_FILE_WRITE`, and the position cannot go
+past the end (Bad Argument Value): a file grows only by writing at its end.
+
+**Paths** are C strings, **absolute**, at most 127 bytes: `/DM48/MYEXT/DATA.BIN`. Names are separated by `/` and
+may use printable ASCII except `" * : < > ? \ |`; there is no drive letter, no `.` or `..`, no empty name and no `/`
+at the end. Names compare without case, as on any FAT disk (`/dm48/a.txt` is `/DM48/A.TXT`). Long names work;
+`NAME.EXT` names (8 + 3) are the safest for files a PC also reads. Anything else is Bad file name.
+
+**File numbers** last one command, like `dx_obj` handles: at most 2 files are open at once, and when your command
+returns, the calculator closes every file it left open, also when it failed, was stopped with ON or faulted. Never
+keep a file number in a static variable for the next call; open the file again. A file open already cannot be opened
+a second time, deleted or renamed (File in use).
+
+**Errors.** A failed call returns -1 and records the error, which your command then gives (return -1 at once, as with
+every `dx_*` call):
+
+| Error | Number | When |
+| --- | --- | --- |
+| No such file | #E811h | opening a missing file to read or update, deleting or renaming a missing one |
+| No such folder | #E812h | a folder on the way is missing |
+| File exists | #E813h | renaming onto an existing name; a folder where a file is |
+| Disk full | #E814h | the disk took only part of a write (what came before it may be on the disk) |
+| Access denied | #E815h | a read-only file, a folder that is not empty, a full folder |
+| Disk error | #E816h | the disk failed, or is invalid after a failed write until the calculator checks it |
+| File in use | #E817h | the file is open already |
+| Too many open files | #E818h | a third file |
+| Bad file name | #E819h | a path that breaks the rules above |
+
+A bad file number, mode, count or buffer is Bad Argument Value, as everywhere in the interface. `dm48ext.h` names them
+`DX_ERR_NO_FILE` ... `DX_ERR_BAD_NAME`, so your command can give one itself with `dx_error`.
+
+**No listing.** The calculator's system cannot list a folder, so neither can an extension. Keep an index file of your
+own when you need to know which files you made (the firmware does the same with `LOAD.TXT`).
+
+**Long transfers.** A single read or write runs to its end: ON cannot break it. Move large files in pieces of a few
+KB and call `dx_poll` between them, so ON stops the command and the system's clock keeps up:
+
+```c
+static uint8_t buf[4096];
+
+static int copy(const char *from, const char *to) {
+  int a = dx_file_open(from, DX_FILE_READ);
+  if (a < 0) return -1;
+  int b = dx_file_open(to, DX_FILE_WRITE);
+  if (b < 0) return -1;                  /* a is closed when the command returns */
+  for (;;) {
+    int n = dx_file_read(a, buf, sizeof buf);
+    if (n < 0 || (n && dx_file_write(b, buf, n) < 0)) return -1;
+    if (n == 0) break;
+    if (dx_poll()) return -1;            /* ON: abandon (the half-written file stays) */
+  }
+  return dx_file_close(b);               /* close a written file yourself: its error is yours to give */
+}
+```
+
+On the calculator writing runs at about 64 KB/s and reading much faster.
+
+**Any path: take care.** An extension may read, overwrite, rename and delete any file on the disk, the calculator's
+own too: saved states (`*.D48`), `LOAD.TXT` and the other extensions in `/DM48/EXT/`, language files, the system's
+files. This is deliberate (an extension can exchange files with any program), and it means:
+
+- Write under a folder of your own, `/DM48/NAME/` (`NAME` your extension's), and delete only files you made.
+- Tell your users which files your commands write.
+- Users: load only extensions you trust, as with any program you run.
+
+A `LOAD.TXT` an extension deleted loads no extensions at the next start; a state file it damaged is refused when
+loaded, as any damaged file. A failed write can leave the disk invalid until the calculator checks it again; every
+file call, and the calculator's own state save, then gives Disk error.
+
+**Testing.** In the host simulator, `fwcli --ext DIR --disk DISK` puts the calculator's disk in the folder `DISK`
+(`/A.TXT` is `DISK/A.TXT`); without `--disk` it is a temporary folder, deleted when `fwcli` ends. The web tester keeps
+its own disk in the browser, kept for the next visit: SETUP → Programs → Extension files… lists its folders, imports
+a file from your PC into the folder shown, exports a file and deletes one, so you can try your commands with real
+data. A firmware without these calls refuses an extension that uses them with `NAME: needs dx_file_open@1 - update
+firmware`.
+
+## USB serial and infrared
+
+Four calls let a command talk to a program on a PC over the USB cable, and send bytes through the infrared LED:
+
+| Call | Does |
+| --- | --- |
+| `dx_serial_connected()` | 1 when a program on the PC has the line open, else 0 |
+| `dx_serial_write(line, n)` | sends one line of `n` bytes (its line end is added): 0 |
+| `dx_serial_read(buf, cap)` | the next line received, without its line end: its length, or 0 when none has come yet |
+| `dx_ir_send(bytes, n)` | sends `n` bytes (up to 4096) for an HP 82240B printer through the infrared LED: 0 |
+
+**The serial line** is the calculator's USB serial console, the one SETUP → Settings → USB console turns on for
+screen mirroring; your extension's lines travel on a channel of their own (channel 2) beside the screen's, so
+mirroring keeps working. It needs:
+
+- SETUP's **USB console ON** (it is off by default), the cable in, and
+- a program on the PC that opens the calculator's serial port and speaks the console's framing. A plain terminal
+  shows the framing bytes; use `tools/dm48serial.py` from this kit (below), or your own program.
+
+A line is text: printable ASCII (space to `~`) and tab, at most `DX_SERIAL_LINE` (127) bytes out and 255 in. A line
+end or any other byte in a line you write is Bad Argument Value; send binary data as hex or base64. An empty line can
+be sent but never arrives: received empty lines are dropped, so 0 from `dx_serial_read` always means "nothing yet".
+
+`dx_serial_read` never waits. To wait for an answer, loop with `dx_poll`, and give up after a while with `dx_ms`:
+
+```c
+static char line[256];
+
+static int ask(const char *q, int n) {          /* sends q, then waits up to 2 s for the answer */
+  if (dx_serial_write(q, n)) return -1;
+  uint32_t t0 = dx_ms();
+  for (;;) {
+    int k = dx_serial_read(line, sizeof line);
+    if (k < 0) return -1;
+    if (k > 0) return k;
+    if (dx_ms() - t0 > 2000) return dx_error_msg("No answer");
+    if (dx_poll()) return -1;                     /* ON */
+  }
+}
+```
+
+Without a connection (USB console off, no cable, no program on the PC), `dx_serial_write` and `dx_serial_read` fail
+with **Not connected** (#E821h, `DX_ERR_NOT_CONNECTED`); ask `dx_serial_connected` first when your command can do
+without the PC. A buffer too small for the next line is Bad Argument Value, and the line stays for a larger one: give
+`dx_serial_read` 255 bytes and that never happens.
+
+What the calculator's system allows sets the pace: a write waits until 40 ms have passed since the last one, so about
+25 lines a second go out (some 3 KB/s), and lines that arrive while no command reads them wait in a small buffer
+(about 256 bytes, 16 lines); when it is full, newer lines are lost. Keep exchanges short, question and answer.
+
+**On the PC**, `tools/dm48serial.py` (Python 3 with `pyserial`) opens the port and joins your program's standard
+input and output to channel 2:
+
+```sh
+python3 tools/dm48serial.py /dev/ttyACM0            # Linux; COM5 on Windows, /dev/cu.usbmodem* on a Mac
+```
+
+Each line your extension writes appears on its standard output; each line typed (or piped) into it goes to the
+calculator. The screen's channel is ignored. Only one program can have the port open at a time, so close the screen
+mirroring page first.
+
+**Infrared.** The DM48's infrared LED is the printer port: the calculator's system turns each byte into the HP 82240B
+printer's infrared frames, and a print command's bytes go the same way. `dx_ir_send` hands it raw bytes, so your
+command can print what it likes, text or graphics, in the 82240B's codes (text bytes, 04 or 0A to end a line, `1B n`
+and n bytes for graphics). It is paced by PRTPAR's delay, as PRINT is, and it waits while the printer's line takes:
+the command does not return before the bytes are out. There is no other use of the LED: the system offers no raw
+control of it, so remote-control codes or IrDA cannot be sent.
+
+**Testing.** In the host simulator, `fwcli --serial FILE` connects the line: each line of `FILE` arrives in turn, and
+each line written is logged as `serial <line>` on standard error. The infrared bytes go to `fwcli`'s print capture
+(`print` replies with them in hex). The web tester has no serial line (`dx_serial_connected` is 0, the others give Not
+connected), and prints the infrared bytes on its paper strip. A firmware without these calls refuses an extension
+that uses them with `NAME: needs dx_serial_write@1 - update firmware`.
+
 ## Install
 
 Copy `NAME.ext` to the `/DM48/EXT/` folder on the calculator's disk (USB disk mode), then choose it once in

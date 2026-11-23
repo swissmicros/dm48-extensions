@@ -11,7 +11,9 @@ ld/ext.ld
 template/.gitignore
 template/Makefile
 template/popcnt.c
+tools/dm48serial.py
 tools/extpack.py
 tools/lngpack.py
+tools/test_dm48serial.py
 tools/test_extpack.py
 tools/test_lngpack.py
