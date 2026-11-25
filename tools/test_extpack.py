@@ -14,6 +14,7 @@ import unittest
 import zlib
 
 import extpack
+import functools
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 KIT = os.path.dirname(HERE)
@@ -23,7 +24,7 @@ GCC = shutil.which('arm-none-eabi-gcc')
 # The template's flags (template/Makefile).
 CFLAGS = ['-mthumb', '-march=armv7e-m', '-mfloat-abi=hard', '-mfpu=fpv4-sp-d16', '-Os', '-ffunction-sections',
           '-fdata-sections', '-fno-common', '-nostdlib', '-ffreestanding', '-fno-builtin',
-          '-fno-tree-loop-distribute-patterns', '-mword-relocations', '-I' + os.path.join(KIT, 'include')]
+          '-fno-tree-loop-distribute-patterns', '-mword-relocations', '-mlong-calls', '-I' + os.path.join(KIT, 'include')]
 LDFLAGS = ['-T', os.path.join(KIT, 'ld', 'ext.ld'), '-Wl,-q', '-Wl,--unresolved-symbols=ignore-all']
 
 TINY = r'''
@@ -75,6 +76,28 @@ def build(src, extra=(), ld=None):
     subprocess.run([GCC, *CFLAGS, *extra, c, *ldflags, '-lgcc', '-o', elf], check=True, capture_output=True)
     with open(elf, 'rb') as f:
       return f.read()
+
+
+# Calls to imports as BL (THM_CALL_IMPORT), as gcc made them before the template's -mlong-calls: the packer and the
+# loader still take them, but binutils 2.42 and later refuse to link them ("Unknown destination type (ARM/Thumb)").
+BL = ('-mno-long-calls',)
+
+
+@functools.cache
+def bl_refused():
+  """Why this linker cannot make BL calls to imports, or '' when it can."""
+  try:
+    build(TINY, BL)
+    return ''
+  except subprocess.CalledProcessError as e:
+    if b'Unknown destination type' in e.stderr:
+      return 'this linker refuses a BL to an undefined import (binutils 2.42 and later)'
+    raise
+
+
+def need_bl(test):
+  if bl_refused():
+    test.skipTest(bl_refused())
 
 
 class Names(unittest.TestCase):
@@ -147,6 +170,13 @@ class Pack(unittest.TestCase):
     used = {x['imports'][imp] for _, typ, imp in x['relocs'] if typ in (2, 3)}
     self.assertEqual(used, set(x['imports']))
 
+  def test_template_flags_call_imports_through_abs32_words(self):
+    # -mlong-calls: no BL to an import, which binutils 2.42 and later refuse to link ("Unknown destination type")
+    x = check_file(self, extpack.pack(build(TINY), name='tiny'))
+    types = {typ for _, typ, _ in x['relocs']}
+    self.assertNotIn(3, types)
+    self.assertIn(2, types)
+
   def test_function_pointer_import_is_abs32_import(self):
     src = '#include "dm48ext.h"\nint (*volatile p)(dx_obj) = dx_push;\nint dx_init(void) { return p(0); }\n'
     x = check_file(self, extpack.pack(build(src), name='fp'))
@@ -184,7 +214,8 @@ class Pack(unittest.TestCase):
     self.assertIn('weak', str(cm.exception))
 
   def test_call_place_must_be_a_branch(self):
-    elf = bytearray(build(TINY))
+    need_bl(self)
+    elf = bytearray(build(TINY, BL))
     e = extpack.Elf(bytes(elf))
     text = next(s for s in e.sections if s['name'] == '.text')
     rel = next(s for s in e.sections if s['name'] == '.rel.text')
@@ -233,21 +264,23 @@ class Pack(unittest.TestCase):
     self.assertGreaterEqual(buf['value'], h['code_size'])
 
   def test_call_reloc_in_code(self):
+    need_bl(self)
     for src in (TINY, DATA, CODE_ONLY):
-      x = check_file(self, extpack.pack(build(src), name='x'))
+      x = check_file(self, extpack.pack(build(src, BL), name='x'))
       calls = [off for off, typ, _ in x['relocs'] if typ == 3]
       self.assertTrue(calls)
       self.assertTrue(all(off < x['header']['code_size'] for off in calls))
 
   def test_call_in_data_is_a_build_error(self):
     # a function put in .data by attribute: the data part would hold code (and its call to an import)
+    need_bl(self)
     src = ('#include "dm48ext.h"\n__attribute__((section(".data.f"), noinline)) int f(void) { return dx_drop(1); }\n'
            'int dx_init(void) { return f(); }\n')
     with self.assertRaises(extpack.PackError) as cm:
-      extpack.pack(build(src), name='bad')
+      extpack.pack(build(src, BL), name='bad')
     self.assertIn('data part', str(cm.exception))
     # the relocation check itself: a call to an import past code_size
-    elf = extpack.Elf(build(TINY))
+    elf = extpack.Elf(build(TINY, BL))
     image, code_size, bss = extpack.layout(elf)
     calls = [off for off, typ, _ in extpack.relocations(elf, image, code_size, bss) if typ == 3]
     with self.assertRaises(extpack.PackError) as cm:
