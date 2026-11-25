@@ -22,7 +22,7 @@ CPUFLAGS = -mthumb -march=armv7e-m -mfloat-abi=hard -mfpu=fpv4-sp-d16
 # -fno-builtin -fno-tree-loop-distribute-patterns: gcc must not turn loops into memcpy/memset calls (there is no libc).
 # -Werror=implicit-function-declaration: a misspelt dx_ name fails the build instead of becoming an import.
 CFLAGS  = $(CPUFLAGS) -Os -ffunction-sections -fdata-sections -fno-common -nostdlib -ffreestanding -fno-builtin \
-          -fno-tree-loop-distribute-patterns -mword-relocations -Wall -Wextra \
+          -fno-tree-loop-distribute-patterns -mword-relocations -mlong-calls -Wall -Wextra \
           -Werror=implicit-function-declaration -I$(KIT)/include
 # -q keeps the relocations for extpack.py; the dx_* imports stay undefined until the calculator loads the file.
 # libgcc gives the double arithmetic and 64-bit division helpers (the FPU is single precision).

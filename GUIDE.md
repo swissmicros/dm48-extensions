@@ -25,6 +25,8 @@ The Makefile does three things:
    the `dx_*` functions pass `double`s in floating-point registers. It adds `-Os -ffunction-sections -fdata-sections
    -fno-common -nostdlib -ffreestanding`, and three flags that keep the code loadable:
    - `-mword-relocations`: addresses become literal words the loader can patch, never `MOVW`/`MOVT` pairs.
+   - `-mlong-calls`: a call to a `dx_*` function goes through such a word. Without it, newer linkers (binutils
+     2.42 and later, as in gcc 14 toolchains) refuse the build with "Unknown destination type (ARM/Thumb)".
    - `-fno-builtin -fno-tree-loop-distribute-patterns`: gcc must not turn your loops into `memcpy` or `memset` calls.
    - `-Werror=implicit-function-declaration`: a misspelt `dx_` name fails the build.
 2. **Links** with `ld/ext.ld` and `-Wl,-q`, which keeps the relocations in the ELF, and `-lgcc`, which supplies the

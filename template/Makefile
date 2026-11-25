@@ -19,10 +19,12 @@ PYTHON  = python3
 # The DM42n's Cortex-M33 runs the DMCP armv7e-m hard-float code: the dx_* functions pass doubles in FPU registers.
 CPUFLAGS = -mthumb -march=armv7e-m -mfloat-abi=hard -mfpu=fpv4-sp-d16
 # -mword-relocations: addresses as literal-pool words (R_ARM_ABS32), never MOVW/MOVT pairs the loader cannot patch.
+# -mlong-calls: a call to a dx_* import loads its address from a literal word (R_ARM_ABS32) and BLX'es it. A BL to an
+#   import stays undefined at link time, and binutils 2.42 and later refuse it ("Unknown destination type").
 # -fno-builtin -fno-tree-loop-distribute-patterns: gcc must not turn loops into memcpy/memset calls (there is no libc).
 # -Werror=implicit-function-declaration: a misspelt dx_ name fails the build instead of becoming an import.
 CFLAGS  = $(CPUFLAGS) -Os -ffunction-sections -fdata-sections -fno-common -nostdlib -ffreestanding -fno-builtin \
-          -fno-tree-loop-distribute-patterns -mword-relocations -Wall -Wextra \
+          -fno-tree-loop-distribute-patterns -mword-relocations -mlong-calls -Wall -Wextra \
           -Werror=implicit-function-declaration -I$(KIT)/include
 # -q keeps the relocations for extpack.py; the dx_* imports stay undefined until the calculator loads the file.
 # libgcc gives the double arithmetic and 64-bit division helpers (the FPU is single precision).
